@@ -1,0 +1,173 @@
+---
+description: Guide for updating version references when new ACM releases are available
+---
+
+# ACM Version Update Guide
+
+This guide covers all changes needed when updating to a new ACM release version (e.g., 2.15 → 2.16).
+
+## Overview
+
+When a new ACM release is available, several version-specific references throughout the repository need to be updated to maintain compatibility and proper pipeline targeting.
+
+## Files That Need Updates
+
+### 1. Tekton Pipeline Files
+
+**Location**: `.tekton/` directory
+
+**Current Files (ACM 2.15)**:
+
+- `multicluster-role-assignment-acm-215-push.yaml`
+- `multicluster-role-assignment-acm-215-pull-request.yaml`
+
+**Action Required**: Rename files and update content
+
+### 2. Version-Specific References
+
+#### File Names
+
+```bash
+# BEFORE (2.15):
+.tekton/multicluster-role-assignment-acm-215-push.yaml
+.tekton/multicluster-role-assignment-acm-215-pull-request.yaml
+
+# AFTER (2.16):
+.tekton/multicluster-role-assignment-acm-216-push.yaml
+.tekton/multicluster-role-assignment-acm-216-pull-request.yaml
+```
+
+#### CEL Expressions (Branch Targeting)
+
+```yaml
+# BEFORE:
+pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "release-2.15"
+pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && (target_branch == "main" || target_branch == "release-2.15")
+
+# AFTER:
+pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "release-2.16"
+pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && (target_branch == "main" || target_branch == "release-2.16")
+```
+
+#### Application and Component Labels
+
+```yaml
+# BEFORE:
+appstudio.openshift.io/application: release-acm-215
+appstudio.openshift.io/component: multicluster-role-assignment-acm-215
+
+# AFTER:
+appstudio.openshift.io/application: release-acm-216
+appstudio.openshift.io/component: multicluster-role-assignment-acm-216
+```
+
+#### Pipeline Names
+
+```yaml
+# BEFORE:
+name: multicluster-role-assignment-acm-215-on-push
+name: multicluster-role-assignment-acm-215-on-pull-request
+
+# AFTER:
+name: multicluster-role-assignment-acm-216-on-push
+name: multicluster-role-assignment-acm-216-on-pull-request
+```
+
+#### Container Image Paths
+
+```yaml
+# BEFORE:
+output-image: quay.io/redhat-user-workloads/crt-redhat-acm-tenant/multicluster-role-assignment-acm-215:{{revision}}
+output-image: quay.io/redhat-user-workloads/crt-redhat-acm-tenant/multicluster-role-assignment-acm-215:on-pr-{{revision}}
+
+# AFTER:
+output-image: quay.io/redhat-user-workloads/crt-redhat-acm-tenant/multicluster-role-assignment-acm-216:{{revision}}
+output-image: quay.io/redhat-user-workloads/crt-redhat-acm-tenant/multicluster-role-assignment-acm-216:on-pr-{{revision}}
+```
+
+#### Service Account Names
+
+```yaml
+# BEFORE:
+serviceAccountName: build-pipeline-multicluster-role-assignment-acm-215
+
+# AFTER:
+serviceAccountName: build-pipeline-multicluster-role-assignment-acm-216
+```
+
+#### Comments
+
+```yaml
+# BEFORE:
+# CEL expression for push builds - supports both main and release-2.15 branches
+# CEL expression to allow builds on both main and release-2.15 branches
+
+# AFTER:
+# CEL expression for push builds - supports both main and release-2.16 branches
+# CEL expression to allow builds on both main and release-2.16 branches
+```
+
+## Step-by-Step Update Process
+
+### 1. Rename Pipeline Files
+
+```bash
+mv .tekton/multicluster-role-assignment-acm-215-push.yaml .tekton/multicluster-role-assignment-acm-216-push.yaml
+mv .tekton/multicluster-role-assignment-acm-215-pull-request.yaml .tekton/multicluster-role-assignment-acm-216-pull-request.yaml
+```
+
+### 2. Bulk Content Updates
+
+```bash
+# Replace version numbers in all tekton files
+sed -i 's/acm-215/acm-216/g' .tekton/*.yaml
+sed -i 's/release-2\.15/release-2.16/g' .tekton/*.yaml
+```
+
+### 3. Verify Changes
+
+```bash
+# Check for any remaining old version references
+grep -r "215\|2\.15" .tekton/
+```
+
+### 4. External Dependencies
+
+#### Branch Strategy
+
+- Ensure new `release-2.16` branch exists in upstream repository
+- Update upstream remotes to track the new branch
+
+#### ReleasePlanAdmission (if exists in Konflux config repo)
+
+- Update RPA file name: `multicluster-role-assignment-acm-216.yaml`
+- Update application name: `release-acm-216`
+
+#### Service Accounts
+
+- Ensure new service account `build-pipeline-multicluster-role-assignment-acm-216` exists in namespace `crt-redhat-acm-tenant`
+
+## Validation Checklist
+
+After making changes, verify:
+
+- [ ] Pipeline file names updated
+- [ ] CEL expressions target correct release branch
+- [ ] Application and component labels updated
+- [ ] Pipeline names updated
+- [ ] Container image paths updated
+- [ ] Service account names updated
+- [ ] Comments reflect new version
+- [ ] No old version references remain
+- [ ] New release branch exists upstream
+- [ ] Service accounts exist in Konflux
+
+## Pattern Recognition
+
+**General Pattern**: Replace all instances of:
+
+- `215` → `216` (or next version number)
+- `2.15` → `2.16` (or next version number)
+- `release-2.15` → `release-2.16`
+
+This pattern applies to any ACM version update (2.16 → 2.17, etc.).

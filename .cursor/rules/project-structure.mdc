@@ -32,3 +32,7 @@ This is a Kubernetes operator project for multicluster role assignment managemen
 
 - Pipeline definitions in [.tekton/](mdc:.tekton/)
 - ReleasePlanAdmission in [multicluster-role-assignment-rpa.yaml](mdc:multicluster-role-assignment-rpa.yaml)
+
+## Documentation:
+
+- Version update guide in [.cursor/rules/version-updates.mdc](mdc:.cursor/rules/version-updates.mdc)
