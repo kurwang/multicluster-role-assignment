@@ -94,7 +94,42 @@ func findAffectedMRAs(oldCP, newCP *clusterpermissionv1alpha1.ClusterPermission)
 		return extractAllOwners(newCP)
 	}
 
+	// add logic to check status of cluster permission status and if there is a change, add to the map
+	oldClusterRoleStatus := buildClusterRoleBindingStatusMap(oldCP)
+	newClusterRoleStatus := buildClusterRoleBindingStatusMap(newCP)
+	oldRoleStatus := buildRoleBindingStatusMap(oldCP)
+	newRoleStatus := buildRoleBindingStatusMap(newCP)
+
+	compareStatus(oldClusterRoleStatus, newClusterRoleStatus, oldCP, newCP, affectedMRAs,
+		func(b clusterpermissionv1alpha1.ClusterRoleBindingStatus) string { return b.Name })
+	compareStatus(oldRoleStatus, newRoleStatus, oldCP, newCP, affectedMRAs,
+		func(b clusterpermissionv1alpha1.RoleBindingStatus) string { return b.Name })
+	
 	return affectedMRAs
+}
+
+func buildClusterRoleBindingStatusMap(
+	cp *clusterpermissionv1alpha1.ClusterPermission) map[string]clusterpermissionv1alpha1.ClusterRoleBindingStatus {
+	
+	statusMap := make(map[string]clusterpermissionv1alpha1.ClusterRoleBindingStatus)
+	if cp.Status.ResourceStatus != nil {
+		for _, status := range cp.Status.ResourceStatus.ClusterRoleBindings {
+			statusMap[status.Name] = status
+		}
+	}
+	return statusMap
+}
+
+func buildRoleBindingStatusMap(
+	cp *clusterpermissionv1alpha1.ClusterPermission) map[string]clusterpermissionv1alpha1.RoleBindingStatus {
+	
+	statusMap := make(map[string]clusterpermissionv1alpha1.RoleBindingStatus)
+	if cp.Status.ResourceStatus != nil {
+		for _, status := range cp.Status.ResourceStatus.RoleBindings {
+			statusMap[status.Name] = status
+		}
+	}
+	return statusMap
 }
 
 // buildClusterRoleBindingMap creates a map of binding name -> binding
@@ -123,6 +158,31 @@ func buildRoleBindingMap(
 		}
 	}
 	return bindingMap
+}
+
+// Helper to check status changes for a specific resource type list
+func compareStatus[T any](
+	oldStatusMap, newStatusMap map[string]T,
+	oldCP, newCP *clusterpermissionv1alpha1.ClusterPermission,
+	affectedMRAs map[string]bool,
+	getBindingName func(T) string) {
+
+	for key, newStatus := range newStatusMap {
+		oldStatus, exists := oldStatusMap[key]
+		if !exists || !equality.Semantic.DeepEqual(oldStatus, newStatus) {
+			if owner := getOwnerFromAnnotation(newCP, getBindingName(newStatus)); owner != "" {
+				affectedMRAs[owner] = true
+			}
+		}
+	}
+
+	for key, oldStatus := range oldStatusMap {
+		if _, exists := newStatusMap[key]; !exists {
+			if owner := getOwnerFromAnnotation(oldCP, getBindingName(oldStatus)); owner != "" {
+				affectedMRAs[owner] = true
+			}
+		}
+	}
 }
 
 // compareBindings compares old and new bindings and identifies affected MRAs
